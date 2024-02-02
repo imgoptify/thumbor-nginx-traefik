@@ -1,0 +1,76 @@
+services:
+  thumbor:
+    image: ghcr.io/minimalcompact/thumbor
+    environment:
+      - VIRTUAL_HOST=${VIRTUAL_HOST}
+      - THUMBOR_NUM_PROCESSES=4
+      - CORS_ALLOW_ORIGIN=*
+      - AUTO_WEBP=True
+      - RESULT_STORAGE=thumbor.result_storages.no_storage
+      - RESULT_STORAGE_STORES_UNSAFE=True
+      - STORAGE=thumbor.storages.file_storage
+      # - STORAGE=thumbor.storages.mixed_storage
+      - SECURITY_KEY=t7uxzwvjh2dpazweafer
+      - ALLOW_UNSAFE_URL=False
+      # - LOG_LEVEL=debug
+      # - MIXED_STORAGE_FILE_STORAGE=thumbor.storages.file_storage
+      - STORAGE_EXPIRATION_SECONDS=604800
+    volumes:
+      - ./logs:/logs
+    deploy:
+      replicas: 3
+    networks:
+      - thumbor
+    restart: always
+  nginx-proxy:
+    image: ghcr.io/minimalcompact/thumbor-nginx-proxy-cache
+    environment:
+      - DEFAULT_HOST=${VIRTUAL_HOST}
+      - PROXY_CACHE_SIZE=10g
+      - PROXY_CACHE_MEMORY_SIZE=500m
+      - PROXY_CACHE_INACTIVE=300m
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ./cache:/var/cache/nginx
+    restart: always
+    networks:
+      - thumbor
+      - default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=balancer"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}.rule=Host(`${VIRTUAL_HOST}`)"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}.entrypoints=websecure"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}.tls.certresolver=myresolver"
+
+  traefik:
+    image: traefik:v2.10
+    command:
+      # - "--log.level=DEBUG"
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.email=${EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - letsencrypt:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: always
+volumes:
+  letsencrypt:
+    driver: local
+  logs:
+    driver: local
+
+networks:
+  default:
+    name: balancer
+  thumbor:
