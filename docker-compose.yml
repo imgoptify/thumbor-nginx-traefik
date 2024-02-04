@@ -10,7 +10,7 @@ services:
       - RESULT_STORAGE_STORES_UNSAFE=True
       - STORAGE=thumbor.storages.file_storage
       # - STORAGE=thumbor.storages.mixed_storage
-      - SECURITY_KEY=t7uxzwvjh2dpazweafer
+      - SECURITY_KEY=${SECURITY_KEY}
       - ALLOW_UNSAFE_URL=False
       # - LOG_LEVEL=debug
       # - MIXED_STORAGE_FILE_STORAGE=thumbor.storages.file_storage
@@ -55,7 +55,7 @@ services:
       - "--entrypoints.websecure.address=:443"
       - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
       - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.myresolver.acme.email=${EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.email=root@${VIRTUAL_HOST}"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"
